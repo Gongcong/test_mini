@@ -4,6 +4,7 @@ from loguru import logger
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from configs import CHROMEDRIVERVERSION
+import re
 
 
 class AutoWebView:
@@ -12,11 +13,12 @@ class AutoWebView:
         self.phone = phone
         self.serial = phone.serial
         app = phone.current_app()
+        logger.info(f'app: {app}')
         optionsData = {
             'androidPackage': app['package'],
             'androidDeviceSerial': self.serial,
             'androidUseRunningApp': True,
-            'androidProcess': self.getPidName(),
+            'androidProcess': "com.tencent.mm:appbrand0",
         }
         logger.info(f'options:{optionsData}')
         options = webdriver.ChromeOptions()
@@ -24,9 +26,11 @@ class AutoWebView:
         options.add_experimental_option('androidDeviceSerial', optionsData['androidDeviceSerial'])
         options.add_experimental_option('androidUseRunningApp', optionsData['androidUseRunningApp'])
         options.add_experimental_option('androidProcess', optionsData['androidProcess'])
-        path = ChromeDriverManager(path='driver/', version=CHROMEDRIVERVERSION).install()
+        
+        path = ChromeDriverManager(driver_version=CHROMEDRIVERVERSION).install()
         self.driver = webdriver.Chrome(executable_path=path, options=options)
         self.driver.implicitly_wait(3)
+
 
     def getPidName(self):
         pidcommand = f'adb -s {self.serial} shell dumpsys activity top| {"findstr" if platform.system() == "Windows" else "grep"} ACTIVITY'
@@ -34,17 +38,34 @@ class AutoWebView:
         pidcommandtext = os.popen(pidcommand)
         pidText = pidcommandtext.read()
         logger.info(f'pidText: {pidText}')
-        pid = (pidText.split('pid=')[-1]).split('\n')[0]
+        app = self.phone.current_app()
+        package = app['package']
+        pid = None
+        for line in pidText.splitlines():
+            if package in line:
+                match = re.search(r'pid=(\d+)', line)
+                if match:
+                    pid = match.group(1)
+                    break
+        if not pid:
+            logger.error('未找到对应包名的pid')
+            return ''
         logger.info(f'pid: {pid}')
 
         pidnamecommand = f'adb -s {self.serial} shell ps {pid}'
-        logger.info(pidcommand)
+        logger.info(pidnamecommand)
         pidnamecommandtext = os.popen(pidnamecommand)
         pidNameText = pidnamecommandtext.read()
         logger.info(f'adbshellPidNameText: {pidNameText}')
-        pidName = (pidNameText.split(' ')[-1]).split('\n')[0]
+        pidName = ''
+        for line in pidNameText.splitlines():
+            if pid in line:
+                parts = line.split()
+                if len(parts) > 0:
+                    pidName = parts[-1]
+                    break
         logger.info(f'pidName: {pidName}')
-        return pidName
+        return pidName if pidName else ''
 
     def senftext(self, text=None):
         """

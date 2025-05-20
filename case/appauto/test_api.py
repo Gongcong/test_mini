@@ -53,7 +53,7 @@ class TestApp(unittest.TestCase):
     def test_demo03(self):
         """第三个用例"""
         logger.info("第3个用例")
-        AutoApp(self.phone).openMiniProgram('魔卡百科')
+        # AutoApp(self.phone).openMiniProgram('魔卡百科')
         AutoMiniProgram(self.phone, '魔卡图鉴').miniprogram('酒吞童子')
 
     def test_demo04(self):
@@ -97,5 +97,5 @@ class TestApp(unittest.TestCase):
 if __name__ == '__main__':
     
     suite = unittest.TestSuite()
-    suite.addTest(TestApp('test_demo10'))
+    suite.addTest(TestApp('test_demo03'))
     unittest.TextTestRunner().run(suite)
